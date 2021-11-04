@@ -1,16 +1,18 @@
 from PyQt5 import uic
-from PyQt5.QtCore import QTranslator, QCoreApplication, Qt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QButtonGroup
+from PyQt5.QtCore import QTranslator, QCoreApplication, Qt, QTimer
+from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QButtonGroup, QColorDialog
 import os
 from babel import Locale
 from PainCanvas import Canvas
 
-PICK_COLORS = [
-    '#000000', '#82817f', '#820300', '#868417', '#007e03', '#037e7b', '#040079',
-    '#81067a', '#7f7e45', '#05403c', '#0a7cf6', '#093c7e', '#7e07f9', '#7c4002',
+import types
 
-    '#ffffff', '#c1c1c1', '#f70406', '#fffd00', '#08fb01', '#0bf8ee', '#0000fa',
-    '#b92fc2', '#fffc91', '#00fd83', '#87f9f9', '#8481c4', '#dc137d', '#fb803c',
+PICK_COLORS = [
+    '#000000', '#82817e', '#820301', '#868416', '#007e02', '#037e7a', '#04007a',
+    '#81067b', '#7f7e46', '#05403d', '#0a7cf7', '#093c7f', '#7e07f8', '#7c4003',
+
+    '#ffffff', '#c2c2c2', '#f70405', '#fffd01', '#08fb00', '#0bf8ef', '#0000fb',
+    '#b92fc3', '#fffc90', '#00fd82', '#87f9fa', '#8481c5', '#dc137e', '#fb803d',
 ]
 
 BTN_MODES = [
@@ -33,6 +35,10 @@ class QPainWindow(QMainWindow):
         self.init_colors()
         self.init_canvas()
         self.init_mode_buttons()
+        self.init_color_selection()
+        self.init_color_buttons()
+        self.init_canvas_timer()
+        self.init_clipboard_copy_button()
         self.show()
 
     def init_canvas(self):
@@ -51,6 +57,21 @@ class QPainWindow(QMainWindow):
             btn.pressed.connect(lambda mode=mode: self.canvas.set_mode(mode))
             mode_group.addButton(btn)
 
+    def init_clipboard_copy_button(self):
+        self.actionCopy.triggered.connect(self.copy_to_clipboard)
+
+    def copy_to_clipboard(self):
+        clipboard = QApplication.clipboard()
+
+        if self.canvas.mode == 'selectRectangular' and self.canvas.locked:
+            clipboard.setPixmap(self.canvas.selectRectangular_copy())
+
+        elif self.canvas.mode == 'selectPolygon' and self.canvas.locked:
+            clipboard.setPixmap(self.canvas.selectPolygon_copy())
+
+        else:
+            clipboard.setPixmap(self.canvas.pixmap())
+
     def init_colors(self):
         for index, color in enumerate(PICK_COLORS, 1):
             btn = getattr(self, 'colorButton_%d' % index)
@@ -63,6 +84,55 @@ class QPainWindow(QMainWindow):
         self.translator = QTranslator(self)
         locale = Locale.default()
         self.set_current_language(locale)
+
+    def init_color_selection(self):
+        # Setup the color selection buttons.
+        self.primaryColorButton.pressed.connect(lambda: self.choose_color(self.set_primary_color))
+        self.secondaryColorButton.pressed.connect(lambda: self.choose_color(self.set_secondary_color))
+
+        # Setup to agree with Canvas.
+        self.set_primary_color('#000000')
+        self.set_secondary_color('#ffffff')
+
+        # Signals for canvas-initiated color changes (dropper).
+        self.canvas.primary_color_updated.connect(self.set_primary_color)
+        self.canvas.secondary_color_updated.connect(self.set_secondary_color)
+
+    def set_primary_color(self, color):
+        self.canvas.set_primary_color(color)
+        self.primaryColorButton.setStyleSheet('QPushButton { background-color: %s; }' % color)
+
+    def set_secondary_color(self, color):
+        self.canvas.set_secondary_color(color)
+        self.secondaryColorButton.setStyleSheet('QPushButton { background-color: %s; }' % color)
+
+    def choose_color(self, callback):
+        dlg = QColorDialog()
+        if dlg.exec():
+            callback( dlg.selectedColor().name() )
+
+
+    def init_color_buttons(self):
+        # Инициализируем обработчики кнопок с палитрой
+        for n, color in enumerate(PICK_COLORS, 1):
+            btn = getattr(self, 'colorButton_%d' % n)
+            btn.setStyleSheet('QPushButton { background-color: %s; }' % color)
+            btn.hex = color  # For use in the event below
+
+            def patch_mousePressEvent(self_, e):
+                if e.button() == Qt.LeftButton:
+                    self.set_primary_color(self_.hex)
+
+                elif e.button() == Qt.RightButton:
+                    self.set_secondary_color(self_.hex)
+
+            btn.mousePressEvent = types.MethodType(patch_mousePressEvent, btn)
+
+    def init_canvas_timer(self):
+        self.canvas_timer = QTimer()
+        self.canvas_timer.timeout.connect(self.canvas.on_timer)
+        self.canvas_timer.setInterval(100)
+        self.canvas_timer.start()
 
     def load_current_language(self, fn):
         app = QApplication.instance()

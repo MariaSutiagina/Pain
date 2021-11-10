@@ -1,9 +1,29 @@
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtGui import QColor, QPixmap, QPen, QPainter, QPolygon, QBitmap, QBrush, QFont
-from PyQt5.QtCore import Qt, pyqtSignal, QRect
+from PyQt5.QtCore import Qt, pyqtSignal, QRect, QPoint
+
+import random
 
 CANVAS_SIZE = 600, 400
 SELECTION_LINE_PATTERN = QPen(QColor(0xff, 0xff, 0xff), 1, Qt.DashLine)
+LINE_PATTERN = QPen(QColor(0xff, 0xff, 0xff), 1, Qt.SolidLine)
+
+BRUSH_SIZE_FACTOR = 3
+SPRAY_SIZE_FACTOR = 5
+SPRAY_DOTS_COUNT = 100
+
+def construct_font(options):
+    """
+    Создает фонт из значений, заданных в опциях
+    :param options:
+    :return: QFont
+    """
+    font = options['font']
+    font.setPointSize(options['fontsize'])
+    font.setBold(options['bold'])
+    font.setItalic(options['italic'])
+    font.setUnderline(options['underline'])
+    return font
 
 class Canvas(QLabel):
 
@@ -14,6 +34,8 @@ class Canvas(QLabel):
 
     primary_color_updated = pyqtSignal(str)
     secondary_color_updated = pyqtSignal(str)
+
+    current_stamp = None
 
     # Хранит настройки режимов
     options = {
@@ -28,7 +50,7 @@ class Canvas(QLabel):
         'underline': False,
     }
 
-
+    
     def initialize(self):
         if self.secondary_color:
             self.background_color = QColor(self.secondary_color)  
@@ -40,6 +62,7 @@ class Canvas(QLabel):
 
         self.eraser_color.setAlpha(100)
         self.reset()
+        self.set_mode("")
 
     def reset(self):
         # создаем растр на холсте
@@ -382,4 +405,285 @@ class Canvas(QLabel):
 
     def eraser_mouseReleaseEvent(self, e):
         self.primary_mouseReleaseEvent(e)
+
+
+    # Обработчики мыши в режиме "Кисть"
+
+    def brush_mousePressEvent(self, e):
+        self.primary_mousePressEvent(e)
+
+    def brush_mouseMoveEvent(self, e):
+        if self.last_pos:
+            p = QPainter(self.pixmap())
+            p.setPen(QPen(self.active_color, self.options['size'] * BRUSH_SIZE_FACTOR, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            p.drawLine(self.last_pos, e.pos())
+
+            self.last_pos = e.pos()
+            self.update()
+
+    def brush_mouseReleaseEvent(self, e):
+        self.primary_mouseReleaseEvent(e)
+
+    # Обработчики мыши в режиме "Спрей"
+
+    def spray_mousePressEvent(self, e):
+        self.primary_mousePressEvent(e)
+
+    def spray_mouseMoveEvent(self, e):
+        if self.last_pos:
+            p = QPainter(self.pixmap())
+            p.setPen(QPen(self.active_color, 1))
+
+            for n in range(self.options['size'] * SPRAY_DOTS_COUNT):
+                xo = random.gauss(0, self.options['size'] * SPRAY_SIZE_FACTOR)
+                yo = random.gauss(0, self.options['size'] * SPRAY_SIZE_FACTOR)
+                p.drawPoint(e.x() + xo, e.y() + yo)
+
+        self.update()
+
+    def spray_mouseReleaseEvent(self, e):
+        self.primary_mouseReleaseEvent(e)
+
+    # Обработчики мыши в режиме заливки
+
+    def fill_mousePressEvent(self, e):
+
+        if e.button() == Qt.LeftButton:
+            self.active_color = self.primary_color
+        else:
+            self.active_color = self.secondary_color
+
+        image = self.pixmap().toImage()
+        w, h = image.width(), image.height()
+        x, y = e.x(), e.y()
+
+        # Получаем цвет пикселя с холста
+        target_color = image.pixel(x,y)
+
+        have_seen = set()
+        queue = [(x, y)]
+
+        def get_adjacent_points(have_seen, center_pos):
+            points = []
+            cx, cy = center_pos
+            # не обрабатываем диагональные точки, 
+            # т.к. это повод просочиться сквозь границу заливки
+            for x, y in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
+                x1, y1 = cx + x, cy + y
+                if ((x1, y1) not in have_seen and 
+                    x1 >= 0 and x1 < w and
+                    y1 >= 0 and y1 < h):
+
+                    points.append((x1, y1))
+                    have_seen.add((x1, y1))
+
+            return points
+
+        p = QPainter(self.pixmap())
+        p.setPen(QPen(self.active_color))
+
+        # Поиск и заливка
+        while queue:
+            x, y = queue.pop()
+            if image.pixel(x, y) == target_color:
+                p.drawPoint(QPoint(x, y))
+                queue.extend(get_adjacent_points(have_seen, (x, y)))
+
+        self.update()
+
+    # События мыши в режиме рисования отрезков
+
+    def line_mousePressEvent(self, e):
+        self.origin_pos = e.pos()
+        self.current_pos = e.pos()
+        self.preview_pen = LINE_PATTERN
+        self.timer_event = self.line_timerEvent
+
+    def line_timerEvent(self, final=False):
+        p = QPainter(self.pixmap())
+        p.setCompositionMode(QPainter.RasterOp_SourceXorDestination)
+        pen = self.preview_pen
+        p.setPen(pen)
+
+        # рисуем макет линии
+        if self.last_pos:
+            p.drawLine(self.origin_pos, self.last_pos)
+
+        if not final:
+            p.drawLine(self.origin_pos, self.current_pos)
+
+        self.update()
+        self.last_pos = self.current_pos
+
+    def line_mouseMoveEvent(self, e):
+        self.current_pos = e.pos()
+
+    def line_mouseReleaseEvent(self, e):
+        if self.last_pos:
+            # Стереть мекет линии
+            self.timer_cleanup()
+
+            p = QPainter(self.pixmap())
+            p.setPen(QPen(self.primary_color, self.options['size'], Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            # Нарисовать линию
+            p.drawLine(self.origin_pos, e.pos())
+            self.update()
+
+        self.reset_mode()
+
+    # Обработчики событий в режиме "Пипетка"
+    def pipette_mousePressEvent(self, e):
+        c = self.pixmap().toImage().pixel(e.pos())
+        color = QColor(c).name()
+
+        if e.button() == Qt.LeftButton:
+            self.set_primary_color(color)
+            self.primary_color_updated.emit(color)  # Запустить событие
+
+        elif e.button() == Qt.RightButton:
+            self.set_secondary_color(color)
+            self.secondary_color_updated.emit(color)  # Запустить событие
+
+    # обработчики мыши в режиме полилинии
+
+    def polyLine_mousePressEvent(self, e):
+        self.active_shape_fn = 'drawPolyline'
+        self.preview_pen = SELECTION_LINE_PATTERN
+        self.primary_polygon_mousePressEvent(e)
+
+    def polyLine_timerEvent(self, final=False):
+        self.primary_polygon_timerEvent(final)
+
+    def polyLine_mouseMoveEvent(self, e):
+        self.primary_polygon_mouseMoveEvent(e)
+
+    def polyLine_mouseDoubleClickEvent(self, e):
+        self.primary_polygon_mouseDoubleClickEvent(e)
+
+    # обработчики мыши в режиме рисоания прямоугольников
+
+    def rectangle_mousePressEvent(self, e):
+        self.active_shape_fn = 'drawRect'
+        self.active_shape_args = ()
+        self.preview_pen = SELECTION_LINE_PATTERN
+        self.primary_shape_mousePressEvent(e)
+
+    def rectangle_timerEvent(self, final=False):
+        self.primary_shape_timerEvent(final)
+
+    def rect_mouseMoveEvent(self, e):
+        self.primary_shape_mouseMoveEvent(e)
+
+    def rectangle_mouseReleaseEvent(self, e):
+        self.primary_shape_mouseReleaseEvent(e)
+
+    # обработчики мыши в режиме рисоания многоугольников
+
+    def polygon_mousePressEvent(self, e):
+        self.active_shape_fn = 'drawPolygon'
+        self.preview_pen = SELECTION_LINE_PATTERN
+        self.primary_polygon_mousePressEvent(e)
+
+    def polygon_timerEvent(self, final=False):
+        self.primary_polygon_timerEvent(final)
+
+    def polygon_mouseMoveEvent(self, e):
+        self.primary_polygon_mouseMoveEvent(e)
+
+    def polygon_mouseDoubleClickEvent(self, e):
+        self.primary_polygon_mouseDoubleClickEvent(e)
+
+    # обработчики мыши в режиме рисоания эллипсов
+
+    def ellipse_mousePressEvent(self, e):
+        self.active_shape_fn = 'drawEllipse'
+        self.active_shape_args = ()
+        self.preview_pen = SELECTION_LINE_PATTERN
+        self.primary_shape_mousePressEvent(e)
+
+    def ellipse_timerEvent(self, final=False):
+        self.primary_shape_timerEvent(final)
+
+    def ellipse_mouseMoveEvent(self, e):
+        self.primary_shape_mouseMoveEvent(e)
+
+    def ellipse_mouseReleaseEvent(self, e):
+        self.primary_shape_mouseReleaseEvent(e)
+
+    # обработчики мыши в режиме рисоания овалов
+
+    def roundRectangle_mousePressEvent(self, e):
+        self.active_shape_fn = 'drawRoundedRect'
+        self.active_shape_args = (25, 25)
+        self.preview_pen = SELECTION_LINE_PATTERN
+        self.primary_shape_mousePressEvent(e)
+
+    def roundRectangle_timerEvent(self, final=False):
+        self.primary_shape_timerEvent(final)
+
+    def roundRectangle_mouseMoveEvent(self, e):
+        self.primary_shape_mouseMoveEvent(e)
+
+    def roundRectangle_mouseReleaseEvent(self, e):
+        self.primary_shape_mouseReleaseEvent(e)
+
+    def stamp_mousePressEvent(self, e):
+        p = QPainter(self.pixmap())
+        stamp = self.current_stamp
+        p.drawPixmap(e.x() - stamp.width() // 2, e.y() - stamp.height() // 2, stamp)
+        self.update()
+
+    # Обработчики событий от мыши и клавиатуры в режиме текста
+
+    def keyPressEvent(self, e):
+        if self.mode == 'text':
+            if e.key() == Qt.Key_Backspace:
+                self.current_text = self.current_text[:-1]
+            else:
+                self.current_text = self.current_text + e.text()
+
+    def text_mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton and self.current_pos is None:
+            self.current_pos = e.pos()
+            self.current_text = ""
+            self.timer_event = self.text_timerEvent
+
+        elif e.button() == Qt.LeftButton:
+
+            self.timer_cleanup()
+            # Рисуем текст
+            p = QPainter(self.pixmap())
+            p.setRenderHints(QPainter.Antialiasing)
+            font = construct_font(self.options)
+            p.setFont(font)
+            pen = QPen(self.primary_color, 1, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            p.setPen(pen)
+            p.drawText(self.current_pos, self.current_text)
+            self.update()
+
+            self.reset_mode()
+
+        elif e.button() == Qt.RightButton and self.current_pos:
+            self.reset_mode()
+
+    def text_timerEvent(self, final=False):
+        p = QPainter(self.pixmap())
+        p.setCompositionMode(QPainter.RasterOp_SourceXorDestination)
+        pen = SELECTION_LINE_PATTERN
+        p.setPen(pen)
+        if self.last_text:
+            font = construct_font(self.last_options)
+            p.setFont(font)
+            p.drawText(self.current_pos, self.last_text)
+
+        if not final:
+            font = construct_font(self.options)
+            p.setFont(font)
+            p.drawText(self.current_pos, self.current_text)
+
+        self.last_text = self.current_text
+        self.last_options = self.options.copy()
+        self.update()
+
+
 

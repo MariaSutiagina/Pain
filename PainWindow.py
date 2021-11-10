@@ -1,6 +1,7 @@
 from PyQt5 import uic
-from PyQt5.QtCore import QTranslator, QCoreApplication, Qt, QTimer
-from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QButtonGroup, QColorDialog
+from PyQt5.QtCore import QTranslator, QCoreApplication, Qt, QTimer,QRect, QPoint
+from PyQt5.QtGui import QPixmap,QImage,QTransform,QIcon, QFont
+from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QButtonGroup, QColorDialog, QFileDialog, QFontComboBox, QComboBox, QLabel, QSlider
 import os
 from babel import Locale
 from PainCanvas import Canvas
@@ -18,7 +19,7 @@ PICK_COLORS = [
 BTN_MODES = [
     'selectPolygon', 'selectRectangular',
     'eraser', 'fill',
-    'dropper', 'stamp',
+    'pipette', 'stamp',
     'pen', 'brush',
     'spray', 'text',
     'line', 'polyLine',
@@ -26,6 +27,33 @@ BTN_MODES = [
     'ellipse', 'roundRectangle'
 ]
 
+BOUNDS_OF_CANVAS = 600, 400
+
+FONT_SIZES = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144]
+
+
+# STAMPS = [
+#     ':/stamps/pie-apple.png',
+#     ':/stamps/pie-cherry.png',
+#     ':/stamps/pie-cherry2.png',
+#     ':/stamps/pie-lemon.png',
+#     ':/stamps/pie-moon.png',
+#     ':/stamps/pie-pork.png',
+#     ':/stamps/pie-pumpkin.png',
+#     ':/stamps/pie-walnut.png',
+# ]
+
+STAMPS = [
+':/stamps/drw-1.jpg',
+':/stamps/drw-box.jpg',
+':/stamps/drw-cyber.jpg',
+':/stamps/drw-dalek.jpg',
+':/stamps/drw-gear.jpg',
+':/stamps/drw-magic.jpg',
+':/stamps/drw-space.jpg',
+':/stamps/drw-tiktok.jpg',
+
+]
 class QPainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(QPainWindow, self).__init__(parent)
@@ -35,11 +63,124 @@ class QPainWindow(QMainWindow):
         self.init_colors()
         self.init_canvas()
         self.init_mode_buttons()
+        self.init_event_props()
         self.init_color_selection()
         self.init_color_buttons()
         self.init_canvas_timer()
         self.init_clipboard_copy_button()
+        self.init_menu()
+        self.init_stamps()
+        self.init_font_toolbar()
+        self.init_size_toolbar()
+
         self.show()
+
+    def init_font_toolbar(self):
+        # Setup the drawing toolbar.
+        self.fontselect = QFontComboBox()
+        self.fontToolbar.addWidget(self.fontselect)
+        self.fontselect.currentFontChanged.connect(lambda f: self.canvas.set_options('font', f))
+        self.fontselect.setCurrentFont(QFont('Times'))
+
+        self.fontsize = QComboBox()
+        self.fontsize.addItems([str(s) for s in FONT_SIZES])
+        self.fontsize.currentTextChanged.connect(lambda f: self.canvas.set_options('fontsize', int(f)))
+
+        # Connect to the signal producing the text of the current selection. Convert the string to float
+        # and set as the pointsize. We could also use the index + retrieve from FONT_SIZES.
+        self.fontToolbar.addWidget(self.fontsize)
+
+        self.fontToolbar.addAction(self.actionBold)
+        self.actionBold.triggered.connect(lambda s: self.canvas.set_options('bold', s))
+        self.fontToolbar.addAction(self.actionItalic)
+        self.actionItalic.triggered.connect(lambda s: self.canvas.set_options('italic', s))
+        self.fontToolbar.addAction(self.actionUnderline)
+        self.actionUnderline.triggered.connect(lambda s: self.canvas.set_options('underline', s))
+
+    def init_size_toolbar(self):
+        sizeicon = QLabel()
+        sizeicon.setPixmap(QPixmap(':/icons/border-weight.png'))
+        self.drawingToolbar.addWidget(sizeicon)
+        self.sizeselect = QSlider()
+        self.sizeselect.setRange(1,20)
+        self.sizeselect.setOrientation(Qt.Horizontal)
+        self.sizeselect.valueChanged.connect(lambda s: self.canvas.set_options('size', s))
+        self.drawingToolbar.addWidget(self.sizeselect)
+
+        self.actionFillShapes.triggered.connect(lambda s: self.canvas.set_options('fill', s))
+        self.drawingToolbar.addAction(self.actionFillShapes)
+        self.actionFillShapes.setChecked(True)
+
+    def init_menu(self):
+        self.actionNewImage.triggered.connect(self.canvas.initialize)
+        self.actionOpenImage.triggered.connect(self.file_open)
+        self.actionSaveImage.triggered.connect(self.file_save)
+        self.actionClearImage.triggered.connect(self.canvas.reset)
+        self.actionInvertColors.triggered.connect(self.invert)
+        self.actionFlipHorizontal.triggered.connect(self.flip_horz)
+        self.actionFlipVertical.triggered.connect(self.flip_vert)
+
+    def file_open(self):
+        """
+        Открывает изображение для редактирования.
+        Масштабирует по меньшему размеру, остаток - обрезает
+        :return:
+        """
+        path, _ = QFileDialog.getOpenFileName(self, "Открыть файл", "", "Файлы PNG (*.png); Файлы JPEG (*jpg); Все файлы (*.*)")
+
+        if path:
+            pixmap = QPixmap()
+            pixmap.load(path)
+
+            # Получаем размер загруженного изображения
+            iw = pixmap.width()
+            ih = pixmap.height()
+
+            # Получаем размер ходста для загрузки изображения
+            cw, ch = BOUNDS_OF_CANVAS
+
+            if iw/cw < ih/ch:  # Если соотношение длин меньше соотношения ширин - масштабируем к длине
+                pixmap = pixmap.scaledToWidth(cw)
+                hoff = (pixmap.height() - ch) // 2
+                pixmap = pixmap.copy(
+                    QRect(QPoint(0, hoff), QPoint(cw, pixmap.height()-hoff))
+                )
+
+            elif iw/cw > ih/ch:  # Иначе - масштабируем к ширине
+                pixmap = pixmap.scaledToHeight(ch)
+                woff = (pixmap.width() - cw) // 2
+                pixmap = pixmap.copy(
+                    QRect(QPoint(woff, 0), QPoint(pixmap.width()-woff, ch))
+                )
+
+            self.canvas.setPixmap(pixmap)
+
+    def file_save(self):
+        """
+        Сохраняет холст в файл с изображением
+        :return:
+        """
+        path, _ = QFileDialog.getSaveFileName(self, "Сохранить файл", "", "Файл PNG (*.png)")
+
+        if path:
+            pixmap = self.canvas.pixmap()
+            pixmap.save(path, "PNG" )
+
+    def invert(self):
+        img = QImage(self.canvas.pixmap())
+        img.invertPixels()
+        pixmap = QPixmap()
+        pixmap.convertFromImage(img)
+        self.canvas.setPixmap(pixmap)
+
+    def flip_horz(self):
+        pixmap = self.canvas.pixmap()
+        self.canvas.setPixmap(pixmap.transformed(QTransform().scale(-1, 1)))
+
+    def flip_vert(self):
+        pixmap = self.canvas.pixmap()
+        self.canvas.setPixmap(pixmap.transformed(QTransform().scale(1, -1)))
+
 
     def init_canvas(self):
         self.horizontalLayout.removeWidget(self.canvas)
@@ -48,7 +189,7 @@ class QPainWindow(QMainWindow):
         self.horizontalLayout.addWidget(self.canvas)
 
     def init_mode_buttons(self):
-        # Setup the mode buttons
+        # Инициализируем кнопки режимов рисования
         mode_group = QButtonGroup(self)
         mode_group.setExclusive(True)
 
@@ -57,6 +198,17 @@ class QPainWindow(QMainWindow):
             btn.pressed.connect(lambda mode=mode: self.canvas.set_mode(mode))
             mode_group.addButton(btn)
 
+    def init_event_props(self):
+        self.canvas.setMouseTracking(True)
+        self.canvas.setFocusPolicy(Qt.StrongFocus)
+
+    def init_stamps(self):
+        # Инициализация режима штампов
+        self.current_stamp_n = -1
+        self.next_stamp()
+        # заряжаем обработчик событий
+        self.stampNextButton.pressed.connect(self.next_stamp)
+        
     def init_clipboard_copy_button(self):
         self.actionCopy.triggered.connect(self.copy_to_clipboard)
 
@@ -79,22 +231,22 @@ class QPainWindow(QMainWindow):
             btn.hex = color  
 
     def init_languages(self):
-        self.load_language_files()
+        pass
+        # self.load_language_files()
 
-        self.translator = QTranslator(self)
-        locale = Locale.default()
-        self.set_current_language(locale)
+        # self.translator = QTranslator(self)
+        # locale = Locale.default()
+        # self.set_current_language(locale)
 
     def init_color_selection(self):
-        # Setup the color selection buttons.
+        # Инициализируем кнопки выбора цвета
         self.primaryColorButton.pressed.connect(lambda: self.choose_color(self.set_primary_color))
         self.secondaryColorButton.pressed.connect(lambda: self.choose_color(self.set_secondary_color))
 
-        # Setup to agree with Canvas.
         self.set_primary_color('#000000')
         self.set_secondary_color('#ffffff')
 
-        # Signals for canvas-initiated color changes (dropper).
+        # Подключаем обработчики нажатий на кнопки для кнопок с выбором цветов
         self.canvas.primary_color_updated.connect(self.set_primary_color)
         self.canvas.secondary_color_updated.connect(self.set_secondary_color)
 
@@ -133,6 +285,16 @@ class QPainWindow(QMainWindow):
         self.canvas_timer.timeout.connect(self.canvas.on_timer)
         self.canvas_timer.setInterval(100)
         self.canvas_timer.start()
+
+    def next_stamp(self):
+        self.current_stamp_n += 1
+        if self.current_stamp_n >= len(STAMPS):
+            self.current_stamp_n = 0
+
+        pixmap = QPixmap(STAMPS[self.current_stamp_n])
+        self.stampNextButton.setIcon(QIcon(pixmap))
+
+        self.canvas.current_stamp = pixmap
 
     def load_current_language(self, fn):
         app = QApplication.instance()

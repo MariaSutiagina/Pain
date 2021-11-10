@@ -32,14 +32,14 @@
         <file alias="stamp.png">icons/stamp.png</file>
     </qresource>
     <qresource prefix="stamps">
-        <file alias="pie-apple.png">stamps/pie-apple.png</file>
-        <file alias="pie-cherry.png">stamps/pie-cherry.png</file>
-        <file alias="pie-cherry2.png">stamps/pie-cherry2.png</file>
-        <file alias="pie-lemon.png">stamps/pie-lemon.png</file>
-        <file alias="pie-moon.png">stamps/pie-moon.png</file>
-        <file alias="pie-pork.png">stamps/pie-pork.png</file>
-        <file alias="pie-pumpkin.png">stamps/pie-pumpkin.png</file>
-        <file alias="pie-walnut.png">stamps/pie-walnut.png</file>
+        <file alias="drw-1.jpg">stamps/drw-1.jpg</file>
+        <file alias="drw-box.jpg">stamps/drw-box.jpg</file>
+        <file alias="drw-cyber.jpg">stamps/drw-cyber.jpg</file>
+        <file alias="drw-dalek.jpg">stamps/drw-dalek.jpg</file>
+        <file alias="drw-gear.jpg">stamps/drw-gear.jpg</file>
+        <file alias="drw-magic.jpg">stamps/drw-magic.jpg</file>
+        <file alias="drw-space.jpg">stamps/drw-space.jpg</file>
+        <file alias="drw-tiktok.jpg">stamps/drw-tiktok.jpg</file>
     </qresource>
 </RCC>
 

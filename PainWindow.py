@@ -1,9 +1,7 @@
 from PyQt5 import uic
-from PyQt5.QtCore import QTranslator, QCoreApplication, Qt, QTimer,QRect, QPoint
+from PyQt5.QtCore import  QCoreApplication, Qt, QTimer,QRect, QPoint
 from PyQt5.QtGui import QPixmap,QImage,QTransform,QIcon, QFont
-from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QButtonGroup, QColorDialog, QFileDialog, QFontComboBox, QComboBox, QLabel, QSlider
-import os
-from babel import Locale
+from PyQt5.QtWidgets import QMainWindow,  QButtonGroup, QColorDialog, QFileDialog, QFontComboBox, QComboBox, QLabel, QSlider
 from PainCanvas import Canvas
 
 import types
@@ -17,7 +15,7 @@ PICK_COLORS = [
 ]
 
 BTN_MODES = [
-    'selectPolygon', 'selectRectangular',
+    # 'selectPolygon', 'selectRectangular',
     'eraser', 'fill',
     'pipette', 'stamp',
     'pen', 'brush',
@@ -59,7 +57,7 @@ class QPainWindow(QMainWindow):
         super(QPainWindow, self).__init__(parent)
         uic.loadUi('resources/painwindow.ui', self)
 
-        self.init_languages()
+        # self.init_languages()
         self.init_colors()
         self.init_canvas()
         self.init_mode_buttons()
@@ -67,13 +65,17 @@ class QPainWindow(QMainWindow):
         self.init_color_selection()
         self.init_color_buttons()
         self.init_canvas_timer()
-        self.init_clipboard_copy_button()
+        # self.init_clipboard_copy_button()
         self.init_menu()
         self.init_stamps()
         self.init_font_toolbar()
         self.init_size_toolbar()
 
         self.show()
+
+    def resizeEvent(self, event):
+        QMainWindow.resizeEvent(self, event)
+        self.canvas.resize(event.size())
 
     def init_font_toolbar(self):
         # Setup the drawing toolbar.
@@ -209,20 +211,20 @@ class QPainWindow(QMainWindow):
         # заряжаем обработчик событий
         self.stampNextButton.pressed.connect(self.next_stamp)
         
-    def init_clipboard_copy_button(self):
-        self.actionCopy.triggered.connect(self.copy_to_clipboard)
+    # def init_clipboard_copy_button(self):
+    #     self.actionCopy.triggered.connect(self.copy_to_clipboard)
 
-    def copy_to_clipboard(self):
-        clipboard = QApplication.clipboard()
+    # def copy_to_clipboard(self):
+    #     clipboard = QApplication.clipboard()
 
-        if self.canvas.mode == 'selectRectangular' and self.canvas.locked:
-            clipboard.setPixmap(self.canvas.selectRectangular_copy())
+    #     if self.canvas.mode == 'selectRectangular' and self.canvas.locked:
+    #         clipboard.setPixmap(self.canvas.selectRectangular_copy())
 
-        elif self.canvas.mode == 'selectPolygon' and self.canvas.locked:
-            clipboard.setPixmap(self.canvas.selectPolygon_copy())
+    #     elif self.canvas.mode == 'selectPolygon' and self.canvas.locked:
+    #         clipboard.setPixmap(self.canvas.selectPolygon_copy())
 
-        else:
-            clipboard.setPixmap(self.canvas.pixmap())
+    #     else:
+    #         clipboard.setPixmap(self.canvas.pixmap())
 
     def init_colors(self):
         for index, color in enumerate(PICK_COLORS, 1):
@@ -230,8 +232,7 @@ class QPainWindow(QMainWindow):
             btn.setStyleSheet('QPushButton { background-color: %s; }' % color)
             btn.hex = color  
 
-    def init_languages(self):
-        pass
+    # def init_languages(self):
         # self.load_language_files()
 
         # self.translator = QTranslator(self)
@@ -296,42 +297,42 @@ class QPainWindow(QMainWindow):
 
         self.canvas.current_stamp = pixmap
 
-    def load_current_language(self, fn):
-        app = QApplication.instance()
-        if os.path.isfile(fn):
-            if self.translator.load(fn):
-              app.installTranslator(self.translator)
-        else:
-            app.removeTranslator(self.translator)
-        self.retranslateUi(self)
+    # def load_current_language(self, fn):
+    #     app = QApplication.instance()
+    #     if os.path.isfile(fn):
+    #         if self.translator.load(fn):
+    #           app.installTranslator(self.translator)
+    #     else:
+    #         app.removeTranslator(self.translator)
+    #     self.retranslateUi(self)
         
-    def set_current_language(self, locale):
-        lang_path = os.path.join(self.get_lang_dir(),f'{locale.language}-{locale.territory}.qm')
-        self.load_current_language(lang_path)
+    # def set_current_language(self, locale):
+    #     lang_path = os.path.join(self.get_lang_dir(),f'{locale.language}-{locale.territory}.qm')
+    #     self.load_current_language(lang_path)
 
-    def select_lang_func(self, tr):
-        sender = self.sender()
-        self.load_current_language(sender.data())
+    # def select_lang_func(self, tr):
+    #     sender = self.sender()
+    #     self.load_current_language(sender.data())
    
 
-    def add_lang_menu(self, ln, fn):
-        langAct = QAction(ln, self)
-        langAct.setData(fn)
-        langAct.triggered.connect(self.select_lang_func)
-        self.menuLanguage.addAction(langAct)
+    # def add_lang_menu(self, ln, fn):
+    #     langAct = QAction(ln, self)
+    #     langAct.setData(fn)
+    #     langAct.triggered.connect(self.select_lang_func)
+    #     self.menuLanguage.addAction(langAct)
 
-    def get_lang_dir(self):
-        return os.path.join(os.path.dirname(__file__),'resources/lang')
+    # def get_lang_dir(self):
+    #     return os.path.join(os.path.dirname(__file__),'resources/lang')
 
-    def load_language_files(self):
-        lang_dir = self.get_lang_dir()
-        for file in os.listdir(lang_dir):
-            fn = os.fsdecode(file)
-            if fn.endswith('.qm'):
-                ll = fn[:-3]
-                lp = ll.split('-')
-                ln = Locale(lp[0], lp[1])
-                self.add_lang_menu(ln.display_name, os.path.join(lang_dir,fn))
+    # def load_language_files(self):
+    #     lang_dir = self.get_lang_dir()
+    #     for file in os.listdir(lang_dir):
+    #         fn = os.fsdecode(file)
+    #         if fn.endswith('.qm'):
+    #             ll = fn[:-3]
+    #             lp = ll.split('-')
+    #             ln = Locale(lp[0], lp[1])
+    #             self.add_lang_menu(ln.display_name, os.path.join(lang_dir,fn))
 
     def retranslateUi(self, wnd):
         _translate = QCoreApplication.translate
@@ -340,13 +341,13 @@ class QPainWindow(QMainWindow):
         self.menuEdit.setTitle(_translate("PainWindow", "Edit"))
         self.menuImage.setTitle(_translate("PainWindow", "Image"))
         self.menuTools.setTitle(_translate("PainWindow", "Tools"))
-        self.menuLanguage.setTitle(_translate("PainWindow", "Language..."))
+        # self.menuLanguage.setTitle(_translate("PainWindow", "Language..."))
         self.menuHelp.setTitle(_translate("PainWindow", "Help"))
         self.fileToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
         self.drawingToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
         self.fontToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
-        self.actionCopy.setText(_translate("PainWindow", "Copy"))
-        self.actionCopy.setShortcut(_translate("PainWindow", "Ctrl+C"))
+        # self.actionCopy.setText(_translate("PainWindow", "Copy"))
+        # self.actionCopy.setShortcut(_translate("PainWindow", "Ctrl+C"))
         self.actionClearImage.setText(_translate("PainWindow", "Clear Image"))
         self.actionOpenImage.setText(_translate("PainWindow", "Open Image..."))
         self.actionSaveImage.setText(_translate("PainWindow", "Save Image As..."))

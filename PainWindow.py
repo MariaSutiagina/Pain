@@ -4,7 +4,10 @@ from PyQt5.QtGui import QPixmap,QImage,QTransform,QIcon, QFont
 from PyQt5.QtWidgets import QMainWindow,  QButtonGroup, QColorDialog, QFileDialog, QFontComboBox, QComboBox, QLabel, QSlider
 from PainCanvas import Canvas
 
+from FractalDialog import QFractalDialog
+
 import types
+import utils
 
 PICK_COLORS = [
     '#000000', '#82817e', '#820301', '#868416', '#007e02', '#037e7a', '#04007a',
@@ -30,17 +33,6 @@ BOUNDS_OF_CANVAS = 600, 400
 FONT_SIZES = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144]
 
 
-# STAMPS = [
-#     ':/stamps/pie-apple.png',
-#     ':/stamps/pie-cherry.png',
-#     ':/stamps/pie-cherry2.png',
-#     ':/stamps/pie-lemon.png',
-#     ':/stamps/pie-moon.png',
-#     ':/stamps/pie-pork.png',
-#     ':/stamps/pie-pumpkin.png',
-#     ':/stamps/pie-walnut.png',
-# ]
-
 STAMPS = [
 ':/stamps/drw-1.jpg',
 ':/stamps/drw-box.jpg',
@@ -55,7 +47,7 @@ STAMPS = [
 class QPainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(QPainWindow, self).__init__(parent)
-        uic.loadUi('resources/painwindow.ui', self)
+        uic.loadUi(utils.resource_path('resources/painwindow.ui'), self)
 
         # self.init_languages()
         self.init_colors()
@@ -121,6 +113,7 @@ class QPainWindow(QMainWindow):
         self.actionInvertColors.triggered.connect(self.invert)
         self.actionFlipHorizontal.triggered.connect(self.flip_horz)
         self.actionFlipVertical.triggered.connect(self.flip_vert)
+        self.actionFractal.triggered.connect(self.fractal)
 
     def file_open(self):
         """
@@ -183,6 +176,15 @@ class QPainWindow(QMainWindow):
         pixmap = self.canvas.pixmap()
         self.canvas.setPixmap(pixmap.transformed(QTransform().scale(1, -1)))
 
+    def fractal(self):
+        dlg = QFractalDialog(self)
+        dlg.exec()
+        if dlg.result() == 1:
+            self.draw_fractal(dlg.fractal())
+
+
+    def draw_fractal(self, fractal):
+        self.canvas.draw_fractal(fractal)
 
     def init_canvas(self):
         self.horizontalLayout.removeWidget(self.canvas)
@@ -334,33 +336,34 @@ class QPainWindow(QMainWindow):
     #             ln = Locale(lp[0], lp[1])
     #             self.add_lang_menu(ln.display_name, os.path.join(lang_dir,fn))
 
-    def retranslateUi(self, wnd):
-        _translate = QCoreApplication.translate
-        wnd.setWindowTitle(_translate("PainWindow", "Pain"))
-        self.menuFile.setTitle(_translate("PainWindow", "File"))
-        self.menuEdit.setTitle(_translate("PainWindow", "Edit"))
-        self.menuImage.setTitle(_translate("PainWindow", "Image"))
-        self.menuTools.setTitle(_translate("PainWindow", "Tools"))
-        # self.menuLanguage.setTitle(_translate("PainWindow", "Language..."))
-        self.menuHelp.setTitle(_translate("PainWindow", "Help"))
-        self.fileToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
-        self.drawingToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
-        self.fontToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
-        # self.actionCopy.setText(_translate("PainWindow", "Copy"))
-        # self.actionCopy.setShortcut(_translate("PainWindow", "Ctrl+C"))
-        self.actionClearImage.setText(_translate("PainWindow", "Clear Image"))
-        self.actionOpenImage.setText(_translate("PainWindow", "Open Image..."))
-        self.actionSaveImage.setText(_translate("PainWindow", "Save Image As..."))
-        self.actionInvertColors.setText(_translate("PainWindow", "Invert Colors"))
-        self.actionFlipHorizontal.setText(_translate("PainWindow", "Flip Horizontal"))
-        self.actionFlipVertical.setText(_translate("PainWindow", "Flip Vertical"))
-        self.actionNewImage.setText(_translate("PainWindow", "New Image"))
-        self.actionBold.setText(_translate("PainWindow", "Bold"))
-        self.actionBold.setShortcut(_translate("PainWindow", "Ctrl+B"))
-        self.actionItalic.setText(_translate("PainWindow", "Italic"))
-        self.actionItalic.setShortcut(_translate("PainWindow", "Ctrl+I"))
-        self.actionUnderline.setText(_translate("PainWindow", "Underline"))
-        self.actionFillShapes.setText(_translate("PainWindow", "Fill Shapes?"))
+    # def retranslateUi(self, wnd):
+    #     _translate = QCoreApplication.translate
+    #     wnd.setWindowTitle(_translate("PainWindow", "Pain"))
+    #     self.menuFile.setTitle(_translate("PainWindow", "File"))
+    #     self.menuEdit.setTitle(_translate("PainWindow", "Edit"))
+    #     self.menuImage.setTitle(_translate("PainWindow", "Image"))
+    #     self.menuTools.setTitle(_translate("PainWindow", "Tools"))
+    #     # self.menuLanguage.setTitle(_translate("PainWindow", "Language..."))
+    #     self.menuHelp.setTitle(_translate("PainWindow", "Help"))
+    #     self.fileToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
+    #     self.drawingToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
+    #     self.fontToolbar.setWindowTitle(_translate("PainWindow", "toolBar"))
+    #     # self.actionCopy.setText(_translate("PainWindow", "Copy"))
+    #     # self.actionCopy.setShortcut(_translate("PainWindow", "Ctrl+C"))
+    #     self.actionClearImage.setText(_translate("PainWindow", "Clear Image"))
+    #     self.actionOpenImage.setText(_translate("PainWindow", "Open Image..."))
+    #     self.actionSaveImage.setText(_translate("PainWindow", "Save Image As..."))
+    #     self.actionInvertColors.setText(_translate("PainWindow", "Invert Colors"))
+    #     self.actionFlipHorizontal.setText(_translate("PainWindow", "Flip Horizontal"))
+    #     self.actionFlipVertical.setText(_translate("PainWindow", "Flip Vertical"))
+    #     self.actionFlipVertical.setText(_translate("PainWindow", "Fractal"))
+    #     self.actionNewImage.setText(_translate("PainWindow", "New Image"))
+    #     self.actionBold.setText(_translate("PainWindow", "Bold"))
+    #     self.actionBold.setShortcut(_translate("PainWindow", "Ctrl+B"))
+    #     self.actionItalic.setText(_translate("PainWindow", "Italic"))
+    #     self.actionItalic.setShortcut(_translate("PainWindow", "Ctrl+I"))
+    #     self.actionUnderline.setText(_translate("PainWindow", "Underline"))
+    #     self.actionFillShapes.setText(_translate("PainWindow", "Fill Shapes?"))
     
 
         

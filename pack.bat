@@ -1,0 +1,1 @@
+pyinstaller --windowed --clean --onefile --distpath ./dist/windows --add-data "resources/*;resources" --paths ./ qtpain.py

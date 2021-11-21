@@ -1,8 +1,10 @@
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtGui import QColor, QPixmap, QPen, QPainter, QPolygon, QBitmap, QBrush, QFont
-from PyQt5.QtCore import Qt, pyqtSignal, QRect, QPoint
+from PyQt5.QtCore import Qt, pyqtSignal, QRect, QPoint, QRectF
 
 import random
+import math
+from fractal import Fractal
 
 CANVAS_SIZE = 600, 400
 SELECTION_LINE_PATTERN = QPen(QColor(0xff, 0xff, 0xff), 1, Qt.DashLine)
@@ -24,6 +26,7 @@ def construct_font(options):
     font.setItalic(options['italic'])
     font.setUnderline(options['underline'])
     return font
+
 
 class Canvas(QLabel):
 
@@ -455,7 +458,7 @@ class Canvas(QLabel):
             for n in range(self.options['size'] * SPRAY_DOTS_COUNT):
                 xo = random.gauss(0, self.options['size'] * SPRAY_SIZE_FACTOR)
                 yo = random.gauss(0, self.options['size'] * SPRAY_SIZE_FACTOR)
-                p.drawPoint(e.x() + xo, e.y() + yo)
+                p.drawPoint(int(e.x() + xo), int(e.y() + yo))
 
         self.update()
 
@@ -703,5 +706,70 @@ class Canvas(QLabel):
         self.last_options = self.options.copy()
         self.update()
 
+    def draw_fractal(self, fractal):
+        pm = self.pixmap()
+        p = QPainter(pm)
+        p.begin(self)
+        
+        item_x = (2 - fractal.direction) * pm.width() / 3
+        item_y = 2 * pm.height() / 3
+        item_size = (item_x + item_y) // (10 * math.sqrt(fractal.item_type + 1))
+        step = 1
+
+        self.draw_recursive(p, fractal, item_x, item_y, item_size, step)
+        p.end()        
+        self.update()
+
+    def construct_color(self, c, fractal):
+        if c > 255:
+            c = 255
+        if c < 0:
+            c = 0
+        rgb = [c, c, c]
+        rgb['rgb'.index(fractal.color)] = 255
+        return rgb
+
+    def draw_rot_left(self, painter, fractal, x, y):
+        painter.translate(x, y)
+        painter.rotate(360 - (90 - fractal.theta_left))
+        painter.translate(-x, -y)
+
+    def draw_rot_back_left(self, painter, fractal, x, y):
+        painter.translate(x, y)
+        painter.rotate(-(360 - (90 - fractal.theta_left)))
+        painter.translate(-x, -y)
+
+    def draw_rot_right(self, painter, fractal, x, y, r):
+        painter.translate(x + r, y)
+        painter.rotate(fractal.theta_right)
+        painter.translate(-(x + r), -y)
+
+    def draw_rot_back_right(self, painter, fractal, x, y, r):
+        painter.translate(x + r, y)
+        painter.rotate(-fractal.theta_right)
+        painter.translate(-(x + r), -y)
+
+    def draw_recursive(self, painter, fractal, item_x, item_y, item_size, step):
+        if step <= fractal.limit:
+            c = step * 256 // fractal.limit - 64
+            rgb = self.construct_color(c, fractal)
+            pen = QPen(QColor(*rgb))
+            pen.setWidth(1)
+            painter.setPen(pen)
+            rgb = self.construct_color(c + 5, fractal)
+            rect_l = QRectF(item_x, item_y, item_size, item_size)
+            painter.fillRect(rect_l, QBrush(QColor(*rgb)))
+            painter.drawRects(rect_l)
+
+            left_x, left_y, left_size = fractal.compute_next_left(item_x, item_y, item_size)
+            right_x, right_y, right_size = fractal.compute_next_right(item_x, item_y, item_size)
+            
+            self.draw_rot_left(painter, fractal, item_x, item_y)
+            self.draw_recursive(painter, fractal, left_x, left_y, left_size, step + 1)
+            self.draw_rot_back_left(painter, fractal, item_x, item_y)
+
+            self.draw_rot_right(painter, fractal, item_x, item_y, item_size)
+            self.draw_recursive(painter, fractal, right_x, right_y, right_size, step + 1)
+            self.draw_rot_back_right(painter, fractal, item_x, item_y, item_size)
 
 

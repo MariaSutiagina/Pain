@@ -92,38 +92,6 @@
              </property>
             </widget>
            </item>
-           <!-- <item row="0" column="1">
-            <widget class="QPushButton" name="selectRectangularButton">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>30</width>
-               <height>30</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>30</width>
-               <height>30</height>
-              </size>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-             <property name="icon">
-              <iconset resource="resources.qrc">
-               <normaloff>:/icons/selection.png</normaloff>:/icons/selection.png</iconset>
-             </property>
-             <property name="checkable">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item> -->
            <item row="1" column="0">
             <widget class="QPushButton" name="eraserButton">
              <property name="sizePolicy">
@@ -220,38 +188,6 @@
              </property>
             </widget>
            </item>
-           <!-- <item row="0" column="0">
-            <widget class="QPushButton" name="selectPolygonButton">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>30</width>
-               <height>30</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>30</width>
-               <height>30</height>
-              </size>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-             <property name="icon">
-              <iconset resource="resources.qrc">
-               <normaloff>:/icons/selection-poly.png</normaloff>:/icons/selection-poly.png</iconset>
-             </property>
-             <property name="checkable">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item> -->
            <item row="3" column="1">
             <widget class="QPushButton" name="brushButton">
              <property name="sizePolicy">
@@ -1392,7 +1328,7 @@
      <x>0</x>
      <y>0</y>
      <width>706</width>
-     <height>20</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -1407,7 +1343,6 @@
     <property name="title">
      <string>Edit</string>
     </property>
-    <!-- <addaction name="actionCopy"/> -->
     <addaction name="separator"/>
     <addaction name="actionClearImage"/>
    </widget>
@@ -1419,28 +1354,11 @@
     <addaction name="separator"/>
     <addaction name="actionFlipHorizontal"/>
     <addaction name="actionFlipVertical"/>
+    <addaction name="actionFractal"/>
    </widget>
-   <!-- <widget class="QMenu" name="menuHelp">
-    <property name="title">
-     <string>Help</string>
-    </property>
-   </widget> -->
-   <!-- <widget class="QMenu" name="menuTools">
-    <property name="title">
-     <string>Tools</string>
-    </property>
-    <widget class="QMenu" name="menuLanguage">
-     <property name="title">
-      <string>Language...</string>
-     </property>
-    </widget>
-    <addaction name="menuLanguage"/>
-   </widget> -->
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
    <addaction name="menuImage"/>
-   <!-- <addaction name="menuTools"/> -->
-   <!-- <addaction name="menuHelp"/> -->
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <widget class="QToolBar" name="fileToolbar">
@@ -1497,14 +1415,6 @@
     <bool>false</bool>
    </attribute>
   </widget>
-  <!-- <action name="actionCopy">
-   <property name="text">
-    <string>Copy</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+C</string>
-   </property>
-  </action> -->
   <action name="actionClearImage">
    <property name="text">
     <string>Clear Image</string>
@@ -1609,6 +1519,11 @@
   <action name="action1">
    <property name="text">
     <string>1</string>
+   </property>
+  </action>
+  <action name="actionFractal">
+   <property name="text">
+    <string>Fractal</string>
    </property>
   </action>
  </widget>
